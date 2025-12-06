@@ -10,6 +10,9 @@ function App() {
   const [currentSubchapter, setCurrentSubchapter] = useState<Subchapter | null>(null);
   const [language, setLanguage] = useState<Language>('pt');
   
+  // Mobile Sidebar State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   // ------------------------------------------------------------------
   // GLOBAL STATE MANAGEMENT (Data Persistence)
   // ------------------------------------------------------------------
@@ -30,8 +33,7 @@ function App() {
     } catch (e) { return {}; }
   });
 
-  // 3. Chat History (Global but Language Specific if needed, currently shared or wiped)
-  // For this implementation, we will keep chat history unified but prompt will change language.
+  // 3. Chat History
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
     try {
         const saved = localStorage.getItem('quantum_chat_history');
@@ -61,10 +63,10 @@ function App() {
   const handleSelectSubchapter = (chapter: Chapter, subchapter: Subchapter) => {
     setCurrentChapter(chapter);
     setCurrentSubchapter(subchapter);
+    // Close mobile menu on selection
+    setIsMobileMenuOpen(false);
   };
 
-  // CACHE KEY GENERATION: Combines Subchapter ID + Language
-  // This ensures outputs are distinct per language (Option B strategy)
   const getCacheKey = (subId: string) => `${subId}_${language}`;
 
   const activeBaseId = currentSubchapter?.id || 'free-roam';
@@ -90,8 +92,6 @@ function App() {
     });
   };
 
-  
-  // Default values definitions
   const defaultMarketingData: MarketingData = {
       strategy: null,
       customTopic: "",
@@ -106,7 +106,6 @@ function App() {
       isDeep: false
   };
 
-  // Safe merging: Merge Cache OVER Defaults
   const activeMarketingData: MarketingData = { 
       ...defaultMarketingData, 
       ...(marketingCache[activeCacheKey] || {}) 
@@ -121,28 +120,43 @@ function App() {
   if (!activeMarketingData.strategy) activeMarketingData.strategy = null;
 
   return (
-    <div className="flex h-screen w-full bg-[#050505] overflow-hidden selection:bg-indigo-500/30">
+    <div className="flex h-screen w-full bg-[#050505] overflow-hidden selection:bg-indigo-500/30 relative">
+      
+      {/* Mobile Overlay Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-30 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       <Sidebar 
         book={BOOK_STRUCTURE} 
         currentSubchapter={currentSubchapter}
         onSelectSubchapter={handleSelectSubchapter}
         currentLanguage={language}
         onSetLanguage={setLanguage}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
+      
       <ContentArea 
         chapter={currentChapter}
         subchapter={currentSubchapter}
         language={language}
         
-        // Pass Data
+        // Data
         marketingData={activeMarketingData}
         podcastData={activePodcastData}
         chatHistory={chatHistory}
         
-        // Pass Updaters
+        // Updaters
         onUpdateMarketing={updateMarketingData}
         onUpdatePodcast={updatePodcastData}
         onUpdateChat={setChatHistory}
+
+        // UX Controls
+        onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       />
     </div>
   );

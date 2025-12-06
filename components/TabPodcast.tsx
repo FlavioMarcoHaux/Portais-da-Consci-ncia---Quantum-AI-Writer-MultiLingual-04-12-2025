@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Chapter, Subchapter, GenerationStatus, PodcastData, Language } from '../types';
 import { QuantumLoader } from './QuantumLoader';
@@ -242,20 +241,20 @@ export const TabPodcast: React.FC<TabPodcastProps> = ({
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#050505] animate-fade-in">
-             <div className="p-8 border-b border-neutral-700 bg-[#080808]">
-                <div className="flex flex-col md:flex-row md:items-center justify-between max-w-5xl mx-auto gap-6">
+             <div className="p-4 md:p-8 border-b border-neutral-700 bg-[#080808]">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between max-w-6xl mx-auto gap-4 md:gap-6">
                     <div>
-                        <h2 className="text-2xl font-serif-title text-purple-300 flex items-center gap-2 shadow-black drop-shadow-sm">
+                        <h2 className="text-xl md:text-2xl font-serif-title text-purple-300 flex items-center gap-2 shadow-black drop-shadow-sm">
                             <Mic2 className="text-purple-500" />
-                            Transmissão Quântica ({language.toUpperCase()})
+                            <span className="truncate">Transmissão Quântica ({language.toUpperCase()})</span>
                         </h2>
-                        <p className="text-neutral-400 text-sm mt-1 font-medium">
+                        <p className="text-neutral-400 text-xs md:text-sm mt-1 font-medium truncate">
                             {subchapter ? `Milton & Roberta: ${subchapter.title}` : "Milton & Roberta: Modo Livre"}
                         </p>
                     </div>
 
-                    <div className="flex flex-col gap-4 w-full md:w-auto">
-                        <div className="relative group w-full md:w-96">
+                    <div className="flex flex-col gap-4 w-full xl:w-auto">
+                        <div className="relative group w-full xl:w-96">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 group-hover:text-purple-400 transition-colors" size={16} />
                             <input 
                                 type="text"
@@ -272,56 +271,56 @@ export const TabPodcast: React.FC<TabPodcastProps> = ({
                             )}
                         </div>
 
-                        <div className="flex items-center gap-3 justify-end">
+                        <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end">
                             {data.segments.length > 0 && (
                                 <>
                                     <button 
                                         onClick={togglePlayback}
                                         disabled={isDownloading}
-                                        className={`flex items-center justify-center w-12 h-12 rounded-full border transition-all shadow-lg hover:scale-105 active:scale-95 ${isPlaying ? 'bg-purple-600 border-purple-400 text-white shadow-purple-900/50' : 'bg-neutral-900 border-neutral-600 text-purple-400 hover:bg-neutral-800 hover:text-purple-300'}`}
+                                        className={`flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border transition-all shadow-lg hover:scale-105 active:scale-95 ${isPlaying ? 'bg-purple-600 border-purple-400 text-white shadow-purple-900/50' : 'bg-neutral-900 border-neutral-600 text-purple-400 hover:bg-neutral-800 hover:text-purple-300'}`}
                                     >
-                                        {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
+                                        {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-1" />}
                                     </button>
 
                                     <button
                                         onClick={handleDownloadScript}
                                         disabled={status === GenerationStatus.GENERATING}
-                                        className="flex items-center justify-center w-12 h-12 rounded-full border border-neutral-600 bg-neutral-900 text-yellow-400 hover:bg-neutral-800 hover:text-yellow-300 transition-all disabled:opacity-50 shadow-md"
+                                        className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border border-neutral-600 bg-neutral-900 text-yellow-400 hover:bg-neutral-800 hover:text-yellow-300 transition-all disabled:opacity-50 shadow-md"
                                         title="Baixar Roteiro (.txt)"
                                     >
-                                        <FileText size={20} />
+                                        <FileText size={18} />
                                     </button>
 
                                     <button
                                         onClick={handleDownloadZip}
                                         disabled={isDownloading || status === GenerationStatus.GENERATING}
-                                        className="flex items-center justify-center w-12 h-12 rounded-full border border-neutral-600 bg-neutral-900 text-green-400 hover:bg-neutral-800 hover:text-green-300 transition-all disabled:opacity-50 shadow-md"
+                                        className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border border-neutral-600 bg-neutral-900 text-green-400 hover:bg-neutral-800 hover:text-green-300 transition-all disabled:opacity-50 shadow-md"
                                         title="Baixar Pacote Podcast (.zip)"
                                     >
                                         {isDownloading ? (
                                             <div className="w-5 h-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
                                         ) : (
-                                            <Archive size={20} />
+                                            <Archive size={18} />
                                         )}
                                     </button>
 
                                     <button
                                         onClick={handleDownloadAudio}
                                         disabled={isDownloading || status === GenerationStatus.GENERATING}
-                                        className="flex items-center justify-center w-12 h-12 rounded-full border border-neutral-600 bg-neutral-900 text-cyan-400 hover:bg-neutral-800 hover:text-cyan-300 transition-all disabled:opacity-50 shadow-md"
+                                        className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border border-neutral-600 bg-neutral-900 text-cyan-400 hover:bg-neutral-800 hover:text-cyan-300 transition-all disabled:opacity-50 shadow-md"
                                         title="Baixar Episódio Completo (.wav)"
                                     >
-                                        <Download size={20} />
+                                        <Download size={18} />
                                     </button>
                                 </>
                             )}
                             
-                            <div className="flex items-center bg-[#050505] rounded-full pl-3 pr-2 py-1 border border-neutral-600 mr-2 h-12 shadow-sm">
+                            <div className="flex items-center bg-[#050505] rounded-full pl-3 pr-2 py-1 border border-neutral-600 h-10 md:h-12 shadow-sm">
                                 <Clock size={16} className="text-neutral-400 mr-2" />
                                 <select 
                                     value={data.durationMinutes} 
                                     onChange={(e) => onUpdate({ durationMinutes: Number(e.target.value) })}
-                                    className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer border-none mr-1 appearance-none hover:text-purple-300 transition-colors"
+                                    className="bg-transparent text-white text-xs md:text-sm font-bold focus:outline-none cursor-pointer border-none mr-1 appearance-none hover:text-purple-300 transition-colors"
                                     disabled={status === GenerationStatus.GENERATING || isDownloading}
                                 >
                                     <option value={5} className="bg-neutral-900 text-white">5 min</option>
@@ -335,34 +334,34 @@ export const TabPodcast: React.FC<TabPodcastProps> = ({
                             <button
                                 onClick={() => handleGenerate(false)}
                                 disabled={status === GenerationStatus.GENERATING || isDownloading || (!subchapter && !data.customTopic)}
-                                className="flex items-center space-x-2 bg-purple-950/80 hover:bg-purple-900 text-white px-6 py-3 rounded-full transition-all border border-purple-700 hover:border-purple-400 group disabled:opacity-50 shadow-[0_0_15px_rgba(168,85,247,0.2)] font-bold"
+                                className="flex items-center space-x-2 bg-purple-950/80 hover:bg-purple-900 text-white px-4 md:px-6 py-2 md:py-3 rounded-full transition-all border border-purple-700 hover:border-purple-400 group disabled:opacity-50 shadow-[0_0_15px_rgba(168,85,247,0.2)] font-bold text-xs md:text-sm"
                             >
                                 {status === GenerationStatus.GENERATING ? (
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    <Sparkles size={18} className="text-purple-200" />
+                                    <Sparkles size={16} className="text-purple-200" />
                                 )}
-                                <span>Roteiro Rápido</span>
+                                <span>Rápido</span>
                             </button>
 
                             <button
                                 onClick={() => handleGenerate(true)}
                                 disabled={status === GenerationStatus.GENERATING || isDownloading || (!subchapter && !data.customTopic)}
-                                className="flex items-center space-x-2 bg-indigo-950/80 hover:bg-indigo-900 text-white px-6 py-3 rounded-full transition-all border border-indigo-700 hover:border-indigo-400 group disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.2)] font-bold"
+                                className="flex items-center space-x-2 bg-indigo-950/80 hover:bg-indigo-900 text-white px-4 md:px-6 py-2 md:py-3 rounded-full transition-all border border-indigo-700 hover:border-indigo-400 group disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.2)] font-bold text-xs md:text-sm"
                             >
                                 {status === GenerationStatus.GENERATING ? (
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    <Radio size={18} className="text-indigo-200" />
+                                    <Radio size={16} className="text-indigo-200" />
                                 )}
-                                <span>Roteiro Profundo</span>
+                                <span>Profundo</span>
                             </button>
                         </div>
                     </div>
                 </div>
              </div>
 
-             <div className="flex-1 overflow-y-auto p-8 bg-[#0a0a0a]">
+             <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#0a0a0a]">
                 <div className="max-w-3xl mx-auto space-y-6">
                     {status === GenerationStatus.IDLE && data.segments.length === 0 && (
                         <div className="text-center text-neutral-500 mt-20">
