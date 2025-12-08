@@ -14,6 +14,58 @@ const BASE_CONFIG = {
   topK: 40,
 };
 
+// ---------------------------------------------------------------------------
+// UTILS: SMART CHUNKING & THROTTLING
+// ---------------------------------------------------------------------------
+
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const splitTextSmartly = (text: string, limit: number = 3500): string[] => {
+    if (!text) return [];
+    if (text.length <= limit) return [text];
+
+    const chunks: string[] = [];
+    let currentChunk = "";
+    
+    // Regex split: Mantém os delimitadores (. ! ?) junto com a frase.
+    // Procura por pontuação final seguida de espaço ou fim da string.
+    // Isso evita cortes no meio de palavras.
+    const sentences = text.match(/[^.!?]+([.!?]+|$)/g) || [text];
+
+    for (const sentence of sentences) {
+        // Se a frase sozinha for maior que o limite (caso raro de texto sem pontuação), corta na força bruta
+        if (sentence.length > limit) {
+             if (currentChunk) {
+                 chunks.push(currentChunk.trim());
+                 currentChunk = "";
+             }
+             // Divide a frase gigante em blocos hard-coded
+             let remaining = sentence;
+             while (remaining.length > 0) {
+                 chunks.push(remaining.slice(0, limit));
+                 remaining = remaining.slice(limit);
+             }
+        } 
+        // Lógica padrão de acumulação
+        else if ((currentChunk.length + sentence.length) > limit) {
+            chunks.push(currentChunk.trim());
+            currentChunk = sentence;
+        } else {
+            currentChunk += sentence;
+        }
+    }
+    
+    if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+    }
+
+    return chunks;
+};
+
+// ---------------------------------------------------------------------------
+// SERVICES
+// ---------------------------------------------------------------------------
+
 const buildPrompt = (chapterTitle: string, subchapterTitle: string, description: string, subchapterId: string, lang: Language) => {
     const references = BIBLIOGRAPHY[subchapterId];
     const bibliographyInstruction = references 
@@ -70,8 +122,8 @@ export const generatePodcastScript = async (
         topicInstruction = "Siga estritamente o tema do Subcapítulo fornecido.";
     }
 
-    // AJUSTE DE ENGENHARIA DE TEMPO (RECALIBRADO):
-    // Mantemos blocos de 5 minutos, mas ajustamos a densidade.
+    // AJUSTE DE ENGENHARIA DE TEMPO:
+    // Dividimos em blocos de 5 minutos para manter a qualidade do contexto
     const CHUNK_DURATION = 5; 
     const totalChunks = Math.ceil(durationMinutes / CHUNK_DURATION);
     
@@ -88,9 +140,7 @@ export const generatePodcastScript = async (
             if (remainder > 0) minutesForThisChunk = remainder;
         }
 
-        // Calculation Correction: 
-        // 170 wpm was too high, leading to 38min outputs for 20min requests.
-        // Reduced to 130 wpm for a more balanced output.
+        // Estimativa de palavras (130 palavras por minuto para um ritmo de fala natural)
         const targetWordCount = Math.ceil(minutesForThisChunk * 130);
 
         const isFinalChunk = currentChunk === totalChunks;
@@ -128,17 +178,17 @@ export const generatePodcastScript = async (
         ${contextInstruction}
         ${hookInstruction}
         
-        **METAS DE EXTENSÃO (CRÍTICO - NÃO EXAGERE):**
+        **METAS DE EXTENSÃO (CRÍTICO):**
         - Tempo Alvo deste bloco: ${minutesForThisChunk} minutos.
         - **Contagem de Palavras:** Aprox. ${targetWordCount} palavras.
-        - Mantenha um ritmo natural de conversa, sem textos excessivamente longos.
+        - Mantenha um ritmo natural de conversa.
         - Use diálogos fluidos.
 
         ${closingInstruction}
         
         **PERSONAGENS (ESTRITO):**
         - Use APENAS "Milton Dilts" ou "Roberta Erickson".
-        - **PROIBIDO:** Não escreva "(Voz de Enceladus)" ou "(Voz de Aoede)" no texto ou no nome do orador. Isso quebra a imersão.
+        - **PROIBIDO:** Não escreva "(Voz de Enceladus)" ou "(Voz de Aoede)" no texto.
         - O ouvinte não deve saber que é uma IA.
         `;
 
@@ -153,7 +203,7 @@ export const generatePodcastScript = async (
                     ...BASE_CONFIG,
                     tools: toolsConfig,
                     responseMimeType: "application/json",
-                    thinkingConfig: { thinkingBudget: isDeep ? 8192 : 2048 }, // Reduced thinking budget for standard generation to help with conciseness
+                    thinkingConfig: { thinkingBudget: isDeep ? 8192 : 2048 },
                 }
             });
             
@@ -177,11 +227,10 @@ export const generatePodcastScript = async (
                 let speakerRaw = item.speaker || "Milton Dilts";
                 
                 // SANITIZATION FILTER
-                // Remove any metadata text like "(Voz de ...)" or "Enceladus/Aoede" from the visual name
                 let speakerClean = speakerRaw
                     .replace(/\(Voz de .+\)/gi, '')
                     .replace(/Voz de .+/gi, '')
-                    .replace(/\(.*\)/g, '') // remove any parenthesis content
+                    .replace(/\(.*\)/g, '') 
                     .replace(/Enceladus/gi, '')
                     .replace(/Aoede/gi, '')
                     .replace(/narrador/gi, 'Milton Dilts')
@@ -190,13 +239,13 @@ export const generatePodcastScript = async (
 
                 if (!speakerClean) speakerClean = "Milton Dilts";
 
-                // Voice Logic Mapping (Backend Only)
+                // Voice Logic Mapping
                 let voiceId = "Enceladus";
-                const lowerSpeaker = speakerRaw.toLowerCase(); // Check raw for mapping, but display clean
+                const lowerSpeaker = speakerRaw.toLowerCase();
                 
                 if (lowerSpeaker.includes('roberta')) {
                     voiceId = 'Aoede';
-                    if (speakerClean === "Milton Dilts") speakerClean = "Roberta Erickson"; // Fallback correction
+                    if (speakerClean === "Milton Dilts") speakerClean = "Roberta Erickson";
                 }
                 
                 return { speaker: speakerClean, voiceId, text: item.text || "", tone: item.tone };
@@ -218,43 +267,60 @@ export const generatePodcastScript = async (
     return allSegments;
 }
 
-export const generateSpeech = async (text: string, voiceIdOrName: string): Promise<string | null> => {
+export const generateSpeech = async (text: string, voiceIdOrName: string, retries = 3): Promise<string | null> => {
   if (!apiKey) throw new Error("API Key not found.");
+  
+  // Hard slice apenas para segurança final (4500), mas o 'splitTextSmartly' deve ser usado antes
+  const safeText = (text || "").slice(0, 4500); 
 
-  try {
-    const safeText = (text || "").slice(0, 4000); 
-    let apiVoiceName = 'Aoede'; 
-    const input = voiceIdOrName ? voiceIdOrName.toLowerCase() : '';
+  let apiVoiceName = 'Aoede'; 
+  const input = voiceIdOrName ? voiceIdOrName.toLowerCase() : '';
 
-    if (input.includes('roberta') || input.includes('aoede') || input.includes('erickson')) {
-        apiVoiceName = 'Aoede';
-    } else {
-        apiVoiceName = 'Enceladus'; 
-    }
-
-    if (input.includes('milton') || input.includes('dilts') || input.includes('enceladus')) {
-        apiVoiceName = 'Enceladus';
-    }
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
-      contents: [{ parts: [{ text: safeText }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: apiVoiceName }, 
-          },
-        },
-      },
-    });
-
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    return base64Audio || null;
-  } catch (error) {
-    console.error("Error generating speech:", error);
-    return null;
+  if (input.includes('roberta') || input.includes('aoede') || input.includes('erickson')) {
+      apiVoiceName = 'Aoede';
+  } else {
+      apiVoiceName = 'Enceladus'; 
   }
+
+  if (input.includes('milton') || input.includes('dilts') || input.includes('enceladus')) {
+      apiVoiceName = 'Enceladus';
+  }
+
+  // Mecanismo de Retry com Exponential Backoff para lidar com Rate Limiting (Erro 429)
+  for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-preview-tts',
+          contents: [{ parts: [{ text: safeText }] }],
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: apiVoiceName }, 
+              },
+            },
+          },
+        });
+
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        return base64Audio || null;
+
+      } catch (error: any) {
+        const isRateLimit = error.message?.includes('429') || error.status === 429 || error.status === 503;
+        
+        if (isRateLimit && attempt < retries - 1) {
+            const waitTime = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s...
+            console.warn(`Rate limit TTS hit. Retrying in ${waitTime}ms... (Attempt ${attempt + 1}/${retries})`);
+            await delay(waitTime);
+            continue;
+        }
+
+        console.error("Error generating speech:", error);
+        // Se falhar na última tentativa, retorna null
+        return null;
+      }
+  }
+  return null;
 };
 
 export const sendChatMessage = async (
@@ -311,17 +377,15 @@ export const generateMarketingStrategy = async (
 ): Promise<MarketingStrategy> => {
     if (!apiKey) throw new Error("API Key not found.");
 
-    // Busca a bibliografia se o ID do subcapítulo for fornecido
     const references = (subchapterId && BIBLIOGRAPHY[subchapterId]) ? BIBLIOGRAPHY[subchapterId] : [];
     
-    // Formata a bibliografia para o prompt
     const bibliographySection = references.length > 0
         ? `
         \n[BIBLIOGRAFIA OBRIGATÓRIA]:
         A lista abaixo contém as referências científicas e espirituais deste subcapítulo.
         ${references.map(r => `- ${r}`).join('\n')}
         
-        **INSTRUÇÃO IMPORTANTE:** Você DEVE incluir a lista de bibliografia acima (ou as referências mais relevantes dela) NO FINAL do campo 'description', formatada de forma limpa.
+        **INSTRUÇÃO IMPORTANTE:** Você DEVE incluir a lista de bibliografia acima NO FINAL do campo 'description'.
         `
         : "";
 
@@ -346,7 +410,6 @@ export const generateMarketingStrategy = async (
     ${bibliographySection}
     
     Gere a estratégia de SEO em ${lang.toUpperCase()}.
-    Certifique-se de que a bibliografia esteja presente no campo 'description' se fornecida.
     `;
 
     try {

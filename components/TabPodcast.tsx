@@ -1,9 +1,10 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Chapter, Subchapter, GenerationStatus, PodcastData, Language } from '../types';
 import { QuantumLoader } from './QuantumLoader';
 import { Mic2, Play, Pause, Download, Radio, Sparkles, Clock, FileText, Search, Terminal, Archive } from 'lucide-react';
-import { generatePodcastScript, generateSpeech } from '../services/geminiService';
+import { generatePodcastScript, generateSpeech, splitTextSmartly, delay } from '../services/geminiService';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { generateZipPackage } from '../utils/downloadHelper';
 
@@ -83,24 +84,41 @@ export const TabPodcast: React.FC<TabPodcastProps> = ({
         }
     };
 
-    const playSegmentRecursive = async (index: number) => {
-        if (index >= data.segments.length) {
+    // Recursive player that handles both Segments AND Smart Chunks
+    const playSegmentRecursive = async (segmentIndex: number, chunkIndex: number = 0) => {
+        // End of all segments
+        if (segmentIndex >= data.segments.length) {
             setCurrentSegmentIndex(-1);
             stop();
             return;
         }
 
-        setCurrentSegmentIndex(index);
-        const segment = data.segments[index];
+        setCurrentSegmentIndex(segmentIndex);
+        const segment = data.segments[segmentIndex];
+
+        // Smart Chunking for Playback:
+        // Divide o texto em blocos menores (seguros para TTS) respeitando pontuação.
+        const chunks = splitTextSmartly(segment.text, 3500);
+
+        // End of chunks for this segment -> move to next segment
+        if (chunkIndex >= chunks.length) {
+            playSegmentRecursive(segmentIndex + 1, 0);
+            return;
+        }
 
         try {
-            const base64Audio = await generateSpeech(segment.text, segment.voiceId);
+            // Process current chunk
+            const base64Audio = await generateSpeech(chunks[chunkIndex], segment.voiceId);
+            
             if (base64Audio) {
                 playBase64(base64Audio, () => {
-                    playSegmentRecursive(index + 1);
+                    // Play next chunk in this segment
+                    playSegmentRecursive(segmentIndex, chunkIndex + 1);
                 });
             } else {
-                playSegmentRecursive(index + 1);
+                // Skip if error, try next chunk
+                console.warn("Skipping bad chunk");
+                playSegmentRecursive(segmentIndex, chunkIndex + 1);
             }
         } catch (e) {
             console.error("Playback error", e);
@@ -137,11 +155,28 @@ export const TabPodcast: React.FC<TabPodcastProps> = ({
     const generateWavBlob = async (): Promise<Blob | null> => {
         try {
             const audioBlobs: Blob[] = [];
-            for (const segment of data.segments) {
-                const base64Audio = await generateSpeech(segment.text, segment.voiceId);
-                if (base64Audio) {
-                    const bytes = base64ToUint8Array(base64Audio);
-                    audioBlobs.push(new Blob([bytes]));
+            
+            // Loop com Throttling (Smart Batching + Delay)
+            for (let i = 0; i < data.segments.length; i++) {
+                const segment = data.segments[i];
+                
+                // Aplicar Smart Chunking para o download também
+                // Garante que nenhum pedaço exceda o limite da API
+                const chunks = splitTextSmartly(segment.text, 3500);
+
+                for (const chunk of chunks) {
+                    // THROTTLING: Delay de segurança entre requisições
+                    // Isso é crucial para episódios longos (20min+) para evitar erro 429
+                    if (audioBlobs.length > 0) {
+                        await delay(500); // 0.5s delay
+                    }
+
+                    const base64Audio = await generateSpeech(chunk, segment.voiceId);
+                    
+                    if (base64Audio) {
+                        const bytes = base64ToUint8Array(base64Audio);
+                        audioBlobs.push(new Blob([bytes]));
+                    }
                 }
             }
   
