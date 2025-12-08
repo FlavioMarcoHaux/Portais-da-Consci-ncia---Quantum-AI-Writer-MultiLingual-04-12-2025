@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ContentArea } from './components/ContentArea';
-import { BOOK_STRUCTURE } from './constants';
+import { BOOK_STRUCTURE } from './bookStructure';
 import { Chapter, Subchapter, MarketingData, PodcastData, ChatMessage, Language } from './types';
 
 function App() {
