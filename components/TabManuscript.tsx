@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Chapter, Subchapter, GenerationStatus, MarketingData, Language } from '../types';
 import { QuantumLoader } from './QuantumLoader';
@@ -38,7 +39,8 @@ export const TabManuscript: React.FC<TabManuscriptProps> = ({
                 subchapter?.title || "Pesquisa Livre", 
                 subchapter?.description || "Conteúdo baseado em pesquisa web deep research",
                 language,
-                data.customTopic // Pass custom topic
+                data.customTopic, // Pass custom topic
+                subchapter?.id // Pass subchapter ID for bibliography
             );
             
             // Generate prompt automatically based on new strategy

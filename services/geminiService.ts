@@ -306,9 +306,24 @@ export const generateMarketingStrategy = async (
     subchapterTitle: string,
     subchapterDescription: string,
     lang: Language,
-    customTopic: string = ""
+    customTopic: string = "",
+    subchapterId?: string
 ): Promise<MarketingStrategy> => {
     if (!apiKey) throw new Error("API Key not found.");
+
+    // Busca a bibliografia se o ID do subcapítulo for fornecido
+    const references = (subchapterId && BIBLIOGRAPHY[subchapterId]) ? BIBLIOGRAPHY[subchapterId] : [];
+    
+    // Formata a bibliografia para o prompt
+    const bibliographySection = references.length > 0
+        ? `
+        \n[BIBLIOGRAFIA OBRIGATÓRIA]:
+        A lista abaixo contém as referências científicas e espirituais deste subcapítulo.
+        ${references.map(r => `- ${r}`).join('\n')}
+        
+        **INSTRUÇÃO IMPORTANTE:** Você DEVE incluir a lista de bibliografia acima (ou as referências mais relevantes dela) NO FINAL do campo 'description', formatada de forma limpa.
+        `
+        : "";
 
     let contextPrompt = "";
     let toolsConfig: any = undefined;
@@ -328,7 +343,10 @@ export const generateMarketingStrategy = async (
 
     const fullPrompt = `
     ${contextPrompt}
+    ${bibliographySection}
+    
     Gere a estratégia de SEO em ${lang.toUpperCase()}.
+    Certifique-se de que a bibliografia esteja presente no campo 'description' se fornecida.
     `;
 
     try {
